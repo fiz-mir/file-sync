@@ -1,0 +1,41 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cloud Server  (deploy this on your cloud VM / VPS)
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "8765:8765"   # WebSocket (clients connect here)
+      - "8080:8080"   # REST API  (trigger downloads, list clients)
+    environment:
+      WS_HOST:       "0.0.0.0"
+      WS_PORT:       "8765"
+      API_HOST:      "0.0.0.0"
+      API_PORT:      "8080"
+      SHARED_SECRET: "${SHARED_SECRET:-change-me-in-production}"
+      DOWNLOAD_DIR:  "/downloads"
+    volumes:
+      - ./downloads:/downloads
+    restart: unless-stopped
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Example On-Premise Client  (deploy one per restaurant)
+# ─────────────────────────────────────────────────────────────────────────────
+  client-demo:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    environment:
+      SERVER_WS_URL:  "ws://server:8765"     # use your public server URL in production
+      CLIENT_ID:      "restaurant-demo"
+      SHARED_SECRET:  "${SHARED_SECRET:-change-me-in-production}"
+      TARGET_FILE:    "/var/data/restaurant_data.db"
+    volumes:
+      - ./demo_data:/var/data:ro              # read-only mount of local data
+    depends_on:
+      - server
+    restart: unless-stopped
